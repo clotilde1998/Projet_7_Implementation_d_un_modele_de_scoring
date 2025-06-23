@@ -11,7 +11,7 @@ app = FastAPI()
 
 # --- Chargement modèle et données ---
 model = pickle.load(open('model.pkl', 'rb'))
-data = pd.read_csv('app_tet.csv', sep=';')
+data = pd.read_csv('echantillon_test.csv', sep=';')
 data_train = pd.read_csv('app_train.csv')
 
 # Mise à l'échelle
