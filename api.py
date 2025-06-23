@@ -1,0 +1,62 @@
+from fastapi import FastAPI
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+import numpy as np
+import pickle
+import uvicorn
+import shap
+from shap import Explainer
+
+app = FastAPI()
+
+# --- Chargement modèle et données ---
+model = pickle.load(open('model.pkl', 'rb'))
+data = pd.read_csv('app_tet.csv', sep=';')
+data_train = pd.read_csv('app_train.csv')
+
+# Mise à l'échelle
+cols = data.select_dtypes(['float64']).columns
+data_scaled = data.copy()
+data_scaled[cols] = StandardScaler().fit_transform(data[cols])
+
+cols = data_train.select_dtypes(['float64']).columns
+data_train_scaled = data_train.copy()
+data_train_scaled[cols] = StandardScaler().fit_transform(data_train[cols])
+
+# Utiliser le classifieur final pour SHAP
+classifier = model.named_steps['model']
+explainer = shap.Explainer(classifier)
+
+@app.get('/')
+def welcome():
+    return {"message": "Welcome to the API"}
+
+@app.get('/{client_id}')
+def check_client_id(client_id: int):
+    return client_id in data['SK_ID_CURR'].values.tolist()
+
+@app.get('/prediction/{client_id}')
+def get_prediction(client_id: int):
+    client_data = data[data['SK_ID_CURR'] == client_id]
+    if client_data.empty:
+        return {"error": "Client ID not found"}
+
+    info_client = client_data.drop(columns=['SK_ID_CURR', 'TARGET'], errors='ignore')
+    prediction = model.predict_proba(info_client)[0][1]
+    return {"client_id": client_id, "probability_default": prediction}
+
+@app.get('/interpretabilite/{client_id}')
+def get_shap_values(client_id: int):
+    client_data = data[data['SK_ID_CURR'] == client_id]
+    if client_data.empty:
+        return {"error": "Client ID not found"}
+
+    individual = client_data.drop(columns=['SK_ID_CURR', 'TARGET'], errors='ignore')
+    shap_values_individual = explainer(individual)
+    shap_values_df = pd.DataFrame(shap_values_individual.values, columns=individual.columns)
+    shap_values_dict = shap_values_df.to_dict(orient='records')[0]
+    
+    return {"shap_values": shap_values_dict}
+
+if __name__ == '__main__':
+    uvicorn.run(app, host="127.0.0.1", port=8001)
