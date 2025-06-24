@@ -66,4 +66,11 @@ Livrables
         de l’exécution du déploiement de l’API avec lien vers l’API sur le Cloud.
 
 
+Github
 
+notebook avec le traitement et la modelisation
+données de test et d'entrainement
+modele en fichier pkl
+api et test_api pour le pytest
+tes_api en local
+requiement  fichier listant les packages utilisés 
